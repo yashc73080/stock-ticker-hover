@@ -1,0 +1,8 @@
+.htt-ticker-highlight {
+  border-bottom: 1px dashed rgba(59, 130, 246, 0.5);
+  cursor: pointer;
+}
+
+.htt-ticker-highlight:hover {
+  border-bottom-color: rgba(59, 130, 246, 0.85);
+}
