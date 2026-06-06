@@ -152,6 +152,20 @@ input:focus {
   text-decoration: underline;
 }
 
+.section-hint .helper {
+  margin-bottom: 0;
+}
+
+.helper kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid var(--htt-border);
+  border-radius: 4px;
+  background: var(--htt-surface);
+  font-family: inherit;
+  font-size: 10px;
+}
+
 .btn-primary {
   padding: 8px 16px;
   background: var(--htt-accent);

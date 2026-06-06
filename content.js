@@ -27,6 +27,27 @@
     'buy', 'sell', 'broker', 'brokerage', 'invest', 'investing', 'trade',
   ]);
 
+  // Standalone words that are corporate suffixes or common English — never highlight alone.
+  const NEGLIGIBLE_STANDALONE_WORDS = new Set([
+    'inc', 'corp', 'corporation', 'co', 'company', 'ltd', 'limited', 'llc', 'plc',
+    'holdings', 'group', 'technologies', 'technology', 'industries', 'industrial',
+    'systems', 'solutions', 'enterprises', 'services', 'communications', 'partners',
+    'bancorp', 'bancshares', 'brands', 'motors', 'labs', 'platforms', 'union',
+  ]);
+
+  // Preceding word + match forms a non-company phrase (European Union, credit union, etc.).
+  const PHRASE_PREFIX_BLOCKLIST = new Set([
+    'european', 'labor', 'labour', 'credit', 'trade', 'student', 'teachers',
+    'workers', 'nations', 'soviet', 'western', 'eastern', 'customs', 'monetary',
+    'state', 'federal', 'international', 'world', 'parent', 'parent\'s',
+  ]);
+
+  const KNOWN_NON_COMPANY_PHRASES = new Set([
+    'european union', 'credit union', 'labor union', 'labour union', 'trade union',
+    'student union', 'teachers union', 'workers union', 'united nations',
+    'soviet union', 'customs union', 'monetary union', 'parent union',
+  ]);
+
   const COMMON_NOUN_SIGNALS = new Set([
     'ate', 'eat', 'eating', 'picked', 'river', 'forest', 'tree', 'fruit',
     'juice', 'species', 'plant', 'animal', 'recipe', 'delicious', 'organic',
@@ -128,10 +149,7 @@
       }
 
       const orgs = doc.organizations().out('array');
-      if (orgs.some((o) => {
-        const oLower = o.toLowerCase();
-        return oLower === lowerMatch || oLower.includes(lowerMatch);
-      })) {
+      if (orgs.some((o) => orgMatchesTerm(o, matchedText))) {
         signals.hasOrg = true;
       }
     } catch {
@@ -139,6 +157,30 @@
     }
 
     return signals;
+  }
+
+  function orgMatchesTerm(orgText, matchedText) {
+    const oLower = orgText.toLowerCase();
+    const mLower = matchedText.toLowerCase();
+    if (oLower === mLower) return true;
+    // e.g. "Union Pacific" for a deliberate "Union" match — not "European Union" for "Union".
+    return oLower.startsWith(mLower + ' ');
+  }
+
+  function getPrecedingWord(text, matchIndex) {
+    const before = text.slice(0, matchIndex).trimEnd();
+    const m = before.match(/([A-Za-z][\w&.'-]*)$/);
+    return m ? m[1].toLowerCase() : null;
+  }
+
+  function isPartOfNonCompanyPhrase(text, matchIndex, matchedText) {
+    const prev = getPrecedingWord(text, matchIndex);
+    if (prev && PHRASE_PREFIX_BLOCKLIST.has(prev)) return true;
+    if (prev) {
+      const phrase = prev + ' ' + matchedText.toLowerCase();
+      if (KNOWN_NON_COMPANY_PHRASES.has(phrase)) return true;
+    }
+    return false;
   }
 
   function passesCompromiseCheck(sentence, matchedText, contextScore, mapKey) {
@@ -232,6 +274,14 @@
     const matchedText = match[0];
     const key = matchedText.toLowerCase();
     if (!(key in COMPANY_MAP)) return false;
+
+    if (!key.includes(' ') && NEGLIGIBLE_STANDALONE_WORDS.has(key)) {
+      return false;
+    }
+
+    if (isPartOfNonCompanyPhrase(text, matchIndex, matchedText)) {
+      return false;
+    }
 
     // Short ticker keys (2–3 chars) must appear in ALL CAPS (AMD, MSI, IBM)
     // to avoid matching common English words (on, it, pm, etc.).
@@ -543,6 +593,44 @@
       text-align: center;
       padding: 8px 0;
     }
+    .pick-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    .pick-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--htt-border);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--htt-text);
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .pick-item:hover {
+      background: rgba(59, 130, 246, 0.12);
+      border-color: rgba(59, 130, 246, 0.35);
+    }
+    .pick-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 170px;
+    }
+    .pick-ticker {
+      color: var(--htt-accent);
+      font-weight: 600;
+      font-size: 11px;
+      flex-shrink: 0;
+      margin-left: 8px;
+    }
     .skeleton {
       height: 28px;
       border-radius: 4px;
@@ -767,6 +855,137 @@
     window.open(buildUrl(ticker), '_blank', 'noopener');
   }
 
+  // ── Manual selection lookup ────────────────────────────────────────────────
+  function findDictionaryMatches(query) {
+    const q = query.toLowerCase().trim().replace(/\s+/g, ' ');
+    if (!q) return [];
+
+    if (q in COMPANY_MAP) {
+      return [{ name: query.trim(), ticker: COMPANY_MAP[q] }];
+    }
+
+    const matches = [];
+    for (const key of sortedKeys) {
+      if (key === q || key.includes(q) || q.includes(key)) {
+        matches.push({ name: key, ticker: COMPANY_MAP[key] });
+        if (matches.length >= 6) break;
+      }
+    }
+    return matches;
+  }
+
+  function searchSymbol(query) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: 'SEARCH_SYMBOL', query }, resolve);
+    });
+  }
+
+  function wrapRangeWithHighlight(range, companyName, ticker) {
+    const span = document.createElement('span');
+    span.className = HIGHLIGHT_CLASS;
+    span.dataset.company = companyName;
+    span.dataset.ticker = ticker === null ? 'null' : ticker;
+
+    try {
+      range.surroundContents(span);
+    } catch {
+      const fragment = range.extractContents();
+      span.appendChild(fragment);
+      range.insertNode(span);
+    }
+    return span;
+  }
+
+  function renderTooltipPicker(query, candidates) {
+    const items = candidates.map((c, i) => {
+      const label = c.name || c.description || c.symbol;
+      const sym = c.ticker ?? c.symbol;
+      const traded = sym === null || sym === undefined;
+      return `<button type="button" class="pick-item" data-idx="${i}">
+        <span class="pick-name">${escapeHtml(label)}</span>
+        <span class="pick-ticker">${traded ? 'Private' : escapeHtml(sym)}</span>
+      </button>`;
+    }).join('');
+
+    tooltipEl.innerHTML = `
+      <div class="header">
+        <span class="company-name">Look up “${escapeHtml(query)}”</span>
+      </div>
+      <div class="pick-list">${items}</div>
+      <div class="footer">Select a match</div>
+    `;
+
+    tooltipEl.querySelectorAll('.pick-item').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = Number(btn.dataset.idx);
+        const pick = candidates[idx];
+        const ticker = pick.ticker ?? pick.symbol ?? null;
+        const name = pick.name || pick.description || query.trim();
+        applyManualLookup(name, ticker);
+      });
+    });
+  }
+
+  function applyManualLookup(companyName, ticker) {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+
+    const range = sel.getRangeAt(0).cloneRange();
+    sel.removeAllRanges();
+
+    const span = wrapRangeWithHighlight(range, companyName, ticker);
+    if (!span) return;
+
+    handleHover(span);
+  }
+
+  async function lookupSelectedText(text) {
+    if (!enabled) return;
+
+    const query = text.trim();
+    if (query.length < 2) return;
+
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+
+    ensureTooltip();
+
+    const rect = sel.getRangeAt(0).getBoundingClientRect();
+    tooltipEl.innerHTML = `<div class="info-msg">Searching for “${escapeHtml(query)}”…</div>`;
+    tooltipHost.style.top = '0';
+    tooltipHost.style.left = '0';
+    tooltipEl.style.top = (rect.bottom + 8 + window.scrollY) + 'px';
+    tooltipEl.style.left = (rect.left + window.scrollX) + 'px';
+    showTooltip();
+
+    const dictMatches = findDictionaryMatches(query);
+    if (dictMatches.length === 1) {
+      applyManualLookup(dictMatches[0].name, dictMatches[0].ticker);
+      return;
+    }
+    if (dictMatches.length > 1) {
+      renderTooltipPicker(query, dictMatches);
+      return;
+    }
+
+    const response = await searchSymbol(query);
+    if (!response || !response.ok || !response.results?.length) {
+      tooltipEl.innerHTML = `
+        <div class="header"><span class="company-name">${escapeHtml(query)}</span></div>
+        <div class="error-msg">No ticker found. Try a more specific name.</div>
+      `;
+      return;
+    }
+
+    const results = response.results.slice(0, 6);
+    if (results.length === 1) {
+      applyManualLookup(results[0].description || query, results[0].symbol);
+      return;
+    }
+
+    renderTooltipPicker(query, results);
+  }
+
   // ── Storage & init ─────────────────────────────────────────────────────────
   function loadSettings() {
     return chrome.storage.sync.get({ enabled: true, platform: 'yahoo' });
@@ -806,6 +1025,14 @@
     if (changes.platform) {
       platform = changes.platform.newValue || 'yahoo';
     }
+  });
+
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.type === 'LOOKUP_SELECTION') {
+      lookupSelectedText(message.text || '');
+      sendResponse({ ok: true });
+    }
+    return false;
   });
 
   loadSettings().then((settings) => {

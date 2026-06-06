@@ -12506,7 +12506,6 @@ const COMPANY_MAP = {
   "unifirst corporation common stock": "UNF",
   "unilever": "UL",
   "unilever plc american depositary shares (each representing one ordinary share)": "UL",
-  "union": "UNP",
   "union bankshares, inc. - common stock": "UNB",
   "union pacific": "UNP",
   "union pacific corporation": "UNP",

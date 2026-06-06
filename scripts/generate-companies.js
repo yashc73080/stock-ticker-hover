@@ -29,6 +29,9 @@ const BLOCKED_KEYS = new Set([
   'take', 'food', 'auto', 'gold', 'land', 'wood', 'glass', 'paper', 'power',
   'water', 'health', 'digital', 'public', 'storage', 'energy', 'science',
   'general', 'american', 'national', 'international', 'united', 'global',
+  'union', 'european', 'pacific', 'atlantic', 'southern', 'northern', 'eastern',
+  'western', 'central', 'capital', 'financial', 'mutual', 'royal', 'premier',
+  'premiere', 'standard', 'community', 'citizens', 'farmers',
   'first', 'principal', 'progress', 'discovery', 'entergy', 'domain',
   'fidelity', // Fidelity Investments is private; don't conflate with FIS
   'able', 'will', 'through', 'being', 'their', 'there', 'where', 'which',

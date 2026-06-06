@@ -27,6 +27,31 @@ const COMMON_NOUN_SIGNALS = new Set([
   'pie', 'recipe', 'baked', 'fruit', 'river', 'forest', 'delicious',
 ]);
 
+const NEGLIGIBLE_STANDALONE_WORDS = new Set([
+  'inc', 'corp', 'corporation', 'co', 'company', 'ltd', 'limited', 'llc', 'plc',
+  'holdings', 'group', 'technologies', 'technology', 'industries', 'systems',
+  'solutions', 'enterprises', 'services', 'communications', 'partners', 'union',
+]);
+
+const PHRASE_PREFIX_BLOCKLIST = new Set([
+  'european', 'labor', 'labour', 'credit', 'trade', 'student', 'teachers',
+  'workers', 'nations', 'soviet', 'western', 'eastern', 'customs', 'monetary',
+]);
+
+function getPrecedingWord(text, matchIndex) {
+  const before = text.slice(0, matchIndex).trimEnd();
+  const m = before.match(/([A-Za-z][\w&.'-]*)$/);
+  return m ? m[1].toLowerCase() : null;
+}
+
+function isBlockedMatch(text, match) {
+  const key = match[0].toLowerCase();
+  if (!key.includes(' ') && NEGLIGIBLE_STANDALONE_WORDS.has(key)) return true;
+  const prev = getPrecedingWord(text, match.index);
+  if (prev && PHRASE_PREFIX_BLOCKLIST.has(prev)) return true;
+  return false;
+}
+
 function getContextScore(text, matchIndex, matchLength) {
   const beforeText = text.slice(0, matchIndex).toLowerCase();
   const afterText = text.slice(matchIndex + matchLength).toLowerCase();
@@ -60,6 +85,8 @@ const dictionaryTests = [
   { text: 'Apple reported strong earnings this quarter.', expect: 'AAPL' },
   { text: 'Meta Platforms announced a new AI product.', expect: 'META' },
   { text: 'The Amazon river flows through Brazil.', expect: null },
+  { text: 'The European Union announced new trade rules.', expect: null },
+  { text: 'Union Pacific reported strong freight revenue.', expect: 'UNP' },
 ];
 
 let passed = 0;
@@ -70,6 +97,9 @@ for (const t of dictionaryTests) {
   if (!t.expect) {
     if (!match) {
       console.log('PASS (no match):', t.text.slice(0, 55));
+      passed++;
+    } else if (isBlockedMatch(t.text, match)) {
+      console.log('PASS (blocked by phrase/negligible word):', t.text.slice(0, 55), '-', match[0]);
       passed++;
     } else {
       const score = getContextScore(t.text, match.index, match[0].length);

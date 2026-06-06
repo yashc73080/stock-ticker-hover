@@ -3,7 +3,7 @@
   "name": "Hover-to-Ticker",
   "version": "1.0.0",
   "description": "Hover over company names on any webpage to see real-time stock data.",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "contextMenus", "scripting"],
   "host_permissions": ["https://finnhub.io/*"],
   "background": {
     "service_worker": "background.js"
@@ -20,6 +20,15 @@
       "run_at": "document_idle"
     }
   ],
+  "commands": {
+    "lookup-selection": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L",
+        "mac": "Command+Shift+L"
+      },
+      "description": "Look up selected text as a stock ticker"
+    }
+  },
   "action": {
     "default_popup": "popup/popup.html",
     "default_icon": {
