@@ -14,7 +14,7 @@ A Chrome extension (Manifest V3) that scans webpages for company names, highligh
 - Viewport-scoped scanning (IntersectionObserver) — no NLP until content is near the viewport
 - Three-layer entity recognition: dictionary → compromise.js NLP → context scoring
 - Real-time quotes on hover with 30-second in-memory cache
-- Click a highlighted name to open your preferred platform (Yahoo, Robinhood, TradingView, CNBC, MarketWatch)
+- Click a highlighted name to open your preferred platform (Yahoo, Robinhood, Fidelity, Schwab, E*TRADE, SoFi, Webull, TradingView, CNBC, MarketWatch)
 - Toggle the extension on/off from the popup without reloading pages
 
 ## Project Structure

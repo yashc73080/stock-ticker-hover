@@ -64,6 +64,11 @@
   const PLATFORM_LABELS = {
     yahoo: 'Yahoo Finance',
     robinhood: 'Robinhood',
+    fidelity: 'Fidelity',
+    schwab: 'Schwab',
+    etrade: 'E*TRADE',
+    sofi: 'SoFi',
+    webull: 'Webull',
     tradingview: 'TradingView',
     cnbc: 'CNBC',
     marketwatch: 'MarketWatch',
@@ -72,6 +77,11 @@
   const PLATFORM_URLS = {
     yahoo: (t) => `https://finance.yahoo.com/quote/${t}`,
     robinhood: (t) => `https://robinhood.com/stocks/${t}`,
+    fidelity: (t) => `https://digital.fidelity.com/prgw/digital/research/quote/dashboard/summary?symbol=${t}`,
+    schwab: (t) => `https://www.schwab.wallst.com/research/Public/Stocks/Summary?symbol=${t}`,
+    etrade: (t) => `https://us.etrade.com/etx/hw/equity/quote/${t}`,
+    sofi: (t) => `https://www.sofi.com/invest/stock/${t}`,
+    webull: (t) => `https://www.webull.com/quote/nasdaq-${t.toLowerCase()}`,
     tradingview: (t) => `https://www.tradingview.com/symbols/${t}/`,
     cnbc: (t) => `https://www.cnbc.com/quotes/${t}`,
     marketwatch: (t) => `https://www.marketwatch.com/investing/stock/${t}`,
