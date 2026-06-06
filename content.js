@@ -23,14 +23,22 @@
     'forecast', 'guidance', 'profit', 'loss', 'trading', 'nasdaq', 'nyse',
     'fiscal', 'outlook', 'beat', 'missed', 'surged', 'plunged', 'rallied',
     'valuation', 'marketplace', 'portfolio', 'fund', 'index', 'sector',
+    'announces', 'launched', 'unveiled', 'posted', 'rose', 'fell',
+    'buy', 'sell', 'broker', 'brokerage', 'invest', 'investing', 'trade',
   ]);
 
   const COMMON_NOUN_SIGNALS = new Set([
     'ate', 'eat', 'eating', 'picked', 'river', 'forest', 'tree', 'fruit',
     'juice', 'species', 'plant', 'animal', 'recipe', 'delicious', 'organic',
     'wild', 'greek', 'variant', 'rainforest', 'jungle', 'farm', 'garden',
-    'baked', 'cooked', 'fresh', 'sweet', 'sour', 'crisp', 'orchard',
+    'baked', 'cooked', 'fresh', 'sweet', 'sour', 'crisp', 'orchard', 'pie',
+    'pastry', 'dessert', 'cinnamon', 'sugar', 'flour', 'butter', 'tart',
+    'salad', 'soup', 'sandwich', 'breakfast', 'lunch', 'dinner', 'snack',
+    'ingredient', 'tablespoon', 'teaspoon', 'oven', 'baking', 'homemade',
   ]);
+
+  // Single-word brands — defined in companies.js, lighter disambiguation rules.
+  // (TRUSTED_BRAND_WORDS global is populated by companies.js)
 
   const PLATFORM_LABELS = {
     yahoo: 'Yahoo Finance',
@@ -96,45 +104,100 @@
     return sentence || text.slice(Math.max(0, matchIndex - 80), Math.min(text.length, matchIndex + 80));
   }
 
-  function passesCompromiseCheck(sentence, matchedText) {
+  function getNlpSignals(sentence, matchedText) {
+    const lowerMatch = matchedText.toLowerCase();
+    const signals = { hasOrg: false, hasProper: false, isCommonNoun: false };
+
     try {
       const doc = nlp(sentence);
       const terms = doc.json()[0]?.terms || [];
-      const lowerMatch = matchedText.toLowerCase();
 
       for (const term of terms) {
-        const termText = term.text.toLowerCase();
-        if (termText === lowerMatch || termText.includes(lowerMatch) || lowerMatch.includes(termText)) {
-          const tags = term.tags || [];
-          if (tags.includes('Organization') || tags.includes('ProperNoun') || tags.includes('Company')) {
-            return true;
-          }
-          if (tags.includes('Noun') && !tags.includes('ProperNoun') && !tags.includes('Organization')) {
-            if (matchedText[0] === matchedText[0].toLowerCase()) {
-              return false;
-            }
-          }
+        const termLower = term.text.toLowerCase();
+        if (termLower !== lowerMatch) continue;
+        const tags = term.tags || [];
+        if (tags.includes('Organization') || tags.includes('Company')) {
+          signals.hasOrg = true;
+        }
+        if (tags.includes('ProperNoun')) {
+          signals.hasProper = true;
+        }
+        if (tags.includes('Noun') && !tags.includes('ProperNoun') && !tags.includes('Organization')) {
+          signals.isCommonNoun = true;
         }
       }
 
       const orgs = doc.organizations().out('array');
-      if (orgs.some((o) => o.toLowerCase().includes(lowerMatch) || lowerMatch.includes(o.toLowerCase()))) {
-        return true;
+      if (orgs.some((o) => {
+        const oLower = o.toLowerCase();
+        return oLower === lowerMatch || oLower.includes(lowerMatch);
+      })) {
+        signals.hasOrg = true;
       }
-
-      const proper = doc.match('#ProperNoun+').out('array');
-      if (proper.some((p) => p.toLowerCase().includes(lowerMatch) || lowerMatch.includes(p.toLowerCase()))) {
-        return true;
-      }
-
-      if (matchedText[0] === matchedText[0].toUpperCase()) {
-        return true;
-      }
-
-      return false;
     } catch {
-      return matchedText[0] === matchedText[0].toUpperCase();
+      // fall through
     }
+
+    return signals;
+  }
+
+  function passesCompromiseCheck(sentence, matchedText, contextScore, mapKey) {
+    const lowerMatch = matchedText.toLowerCase();
+    const isTrustedBrand = typeof TRUSTED_BRAND_WORDS !== 'undefined' &&
+      TRUSTED_BRAND_WORDS.has(lowerMatch);
+    const isMultiWord = mapKey.includes(' ') || mapKey.includes('&') || mapKey.includes('*');
+    const isPrivateCompany = COMPANY_MAP[lowerMatch] === null;
+    const signals = getNlpSignals(sentence, matchedText);
+
+    if (signals.isCommonNoun && !signals.hasOrg) {
+      return false;
+    }
+
+    if (contextScore < 0) {
+      return false;
+    }
+
+    if (signals.hasOrg) {
+      return true;
+    }
+
+    // Privately held names (Fidelity Investments, OpenAI, etc.)
+    if (
+      isPrivateCompany &&
+      matchedText[0] === matchedText[0].toUpperCase() &&
+      (signals.hasProper || signals.hasOrg)
+    ) {
+      return true;
+    }
+
+    // Multi-word dictionary hits (Charles Schwab, Morgan Stanley) are high confidence.
+    if (
+      isMultiWord &&
+      matchedText[0] === matchedText[0].toUpperCase() &&
+      contextScore >= 0 &&
+      !signals.isCommonNoun
+    ) {
+      return true;
+    }
+
+    // Trusted brands (Apple, Dell, Schwab, etc.)
+    if (
+      isTrustedBrand &&
+      signals.hasProper &&
+      matchedText[0] === matchedText[0].toUpperCase()
+    ) {
+      return true;
+    }
+
+    if (isTrustedBrand && contextScore > 0) {
+      return true;
+    }
+
+    if (signals.hasProper && contextScore > 0) {
+      return true;
+    }
+
+    return false;
   }
 
   // ── Layer 3: context window scoring ────────────────────────────────────────
@@ -155,6 +218,12 @@
 
     if (beforeText.includes('market cap')) score += 1;
     if (beforeText.includes('delta variant') || afterText.includes('delta variant')) score -= 2;
+    if (/\b(live|breaking)\s+(updates|coverage|blog|stream|feed)\b/.test(beforeText + ' ' + afterText)) score -= 2;
+    if (/\bbest\s+(of|for|ways|tips|recipes|practices|products|deals)\b/.test(beforeText)) score -= 2;
+    if (/\b\d{1,2}\s*(am|pm)\b/.test(beforeText + afterText)) score -= 3;
+    if (/\b(buy|trade|invest|broker|brokerage|platform|account)\b/.test(beforeText + ' ' + afterText)) {
+      score += 1;
+    }
 
     return score;
   }
@@ -164,11 +233,19 @@
     const key = matchedText.toLowerCase();
     if (!(key in COMPANY_MAP)) return false;
 
-    const sentence = getSentence(text, matchIndex);
-    if (!passesCompromiseCheck(sentence, matchedText)) return false;
+    // Short ticker keys (2–3 chars) must appear in ALL CAPS (AMD, MSI, IBM)
+    // to avoid matching common English words (on, it, pm, etc.).
+    if (key.length <= 3 && matchedText !== matchedText.toUpperCase()) {
+      return false;
+    }
 
     const score = getContextScore(text, matchIndex, matchedText.length);
-    return score >= 0;
+    if (score < 0) return false;
+
+    const sentence = getSentence(text, matchIndex);
+    if (!passesCompromiseCheck(sentence, matchedText, score, key)) return false;
+
+    return true;
   }
 
   // ── DOM helpers ────────────────────────────────────────────────────────────

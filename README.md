@@ -33,8 +33,18 @@ scripts/            Dev utilities (generate-companies.js, validate-map.js)
 
 ## Regenerating companies.js
 
+S&P 500 only (default):
+
 ```bash
 node scripts/generate-companies.js
 ```
 
-Requires `scripts/constituents.csv` (S&P 500 constituents).
+Include all NASDAQ/NYSE listed symbols (~6,000+ companies):
+
+```bash
+node scripts/generate-companies.js --fetch-symbols
+```
+
+This downloads public symbol lists from nasdaqtrader.com and merges them with the S&P 500 data and brand aliases. Requires network access during generation only — the extension itself stays offline.
+
+Single-word brand names (Apple, Dell, Nvidia, etc.) are kept as explicit **trusted brands** with lighter matching rules. Common English words (Best, Live, On, PM) are blocklisted and never matched alone.
