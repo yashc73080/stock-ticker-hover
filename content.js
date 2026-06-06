@@ -578,6 +578,21 @@
       padding-top: 8px;
       margin-top: 4px;
     }
+    .footer-link {
+      display: block;
+      width: 100%;
+      border: none;
+      background: none;
+      padding: 0;
+      font-family: inherit;
+      font-size: inherit;
+      color: inherit;
+      cursor: pointer;
+      transition: color 150ms;
+    }
+    .footer-link:hover {
+      color: var(--htt-accent);
+    }
     .badge {
       display: inline-block;
       padding: 3px 8px;
@@ -709,8 +724,14 @@
         <div class="stat"><span class="stat-label">Low</span><span class="stat-value">$${formatPrice(data.low)}</span></div>
         <div class="stat"><span class="stat-label">Prev</span><span class="stat-value">$${formatPrice(data.previousClose)}</span></div>
       </div>
-      <div class="footer">Click to open in ${escapeHtml(platformLabel)}</div>
+      <button type="button" class="footer footer-link">Click to open in ${escapeHtml(platformLabel)}</button>
     `;
+
+    tooltipEl.querySelector('.footer-link')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openBroker(ticker);
+    });
   }
 
   function renderTooltipError(company, ticker, code) {
@@ -843,16 +864,18 @@
     scheduleHide();
   }
 
+  function openBroker(ticker) {
+    if (!ticker || ticker === 'null' || !enabled) return;
+    const buildUrl = PLATFORM_URLS[platform] || PLATFORM_URLS.yahoo;
+    window.open(buildUrl(ticker), '_blank', 'noopener');
+  }
+
   function onClick(e) {
     const span = e.target.closest('.' + HIGHLIGHT_CLASS);
     if (!span || !enabled) return;
 
-    const ticker = span.dataset.ticker;
-    if (ticker === 'null') return;
-
     e.preventDefault();
-    const buildUrl = PLATFORM_URLS[platform] || PLATFORM_URLS.yahoo;
-    window.open(buildUrl(ticker), '_blank', 'noopener');
+    openBroker(span.dataset.ticker);
   }
 
   // ── Manual selection lookup ────────────────────────────────────────────────
