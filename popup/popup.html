@@ -3,16 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hover-to-Ticker</title>
+  <title>Glance</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <header class="header">
     <div class="brand">
-      <svg class="logo" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M3 11H17M3 11L6 8M3 11L6 14M17 11L14 8M17 11L14 14" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span class="wordmark">Hover-to-Ticker</span>
+      <img class="logo" src="../icons/icon48.png" width="20" height="20" alt="">
+      <span class="wordmark">Glance</span>
     </div>
     <label class="toggle" title="Enable extension">
       <input type="checkbox" id="enabled-toggle" checked>
@@ -36,8 +34,7 @@
 
   <section class="section section-hint">
     <p class="helper">
-      Missed a company? Highlight its name, then right-click <strong>Look up stock ticker</strong>
-      or press <kbd>Ctrl+Shift+L</kbd>.
+      Missed a company? Highlight its name, then right-click <strong>Look up stock ticker</strong>.
     </p>
   </section>
 
@@ -54,7 +51,7 @@
 
   <footer class="footer">
     <span id="version">v1.0.0</span>
-    <a href="https://github.com/hsayc/stock-ticker-hover/issues" target="_blank" rel="noopener">Report an issue</a>
+    <a href="https://github.com/yashc73080/stock-ticker-hover/issues" target="_blank" rel="noopener">Report an issue</a>
   </footer>
 
   <script src="popup.js"></script>

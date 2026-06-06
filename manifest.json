@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Hover-to-Ticker",
+  "name": "Glance",
   "version": "1.0.0",
   "description": "Hover over company names on any webpage to see real-time stock data.",
   "permissions": ["storage", "activeTab", "contextMenus", "scripting"],

@@ -37,6 +37,12 @@ body {
   gap: 8px;
 }
 
+.logo {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
 .wordmark {
   font-weight: 600;
   font-size: 14px;

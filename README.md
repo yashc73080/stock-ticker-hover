@@ -1,4 +1,4 @@
-# Hover-to-Ticker
+# Glance
 
 A Chrome extension (Manifest V3) that scans webpages for company names, highlights them with a subtle underline, and shows real-time stock data on hover via the Finnhub API.
 
